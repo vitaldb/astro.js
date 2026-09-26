@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>astro.js 예제</title>
+<style>
+  body { font: 15px/1.6 system-ui, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif; max-width: 720px; margin: 2rem auto; padding: 0 1rem; }
+  table { border-collapse: collapse; } td, th { border-bottom: 1px solid #ddd; padding: 4px 12px; text-align: left; }
+  .moon { display: flex; gap: 12px; align-items: center; }
+</style>
+</head>
+<body>
+<h1>astro.js 예제 — 오늘 서울</h1>
+<div id="out"></div>
+<script src="../src/astro.js"></script>
+<script src="../src/astrodata.js"></script>
+<script src="../src/moonphase.js"></script>
+<script>
+// astro.js 는 관측지를 전역 변수로 읽는다 (경도·위도는 라디안, dgmt 는 UTC 와의 시차)
+var glon = 126.9779528 * D2R, glat = 37.56635278 * D2R, dgmt = 9;
+var now = new Date();
+var lct = GetJD(now.getFullYear(), now.getMonth() + 1, now.getDate(), 12, 0, 0);
+
+var sun = GetRiseSetTime2(lct, calsun, D2R * -0.83);   // 대기 굴절·해의 크기 보정
+var moon = GetRiseSetTime2(lct, calmoon, D2R * -0.13);
+var lun = sol2lun(now.getFullYear(), now.getMonth() + 1, now.getDate());
+var lst = GSTToLST(UTToGST(LCTToUT(GetJD(now.getFullYear(), now.getMonth() + 1, now.getDate(),
+                                         now.getHours(), now.getMinutes(), now.getSeconds()), dgmt)), glon);
+var ph = MoonPhase.at(lct);
+
+document.getElementById("out").innerHTML =
+  "<table>" +
+  "<tr><th>날짜<td>" + YMD(lct) + " (음력 " + (lun.leap ? "윤" : "") + lun.month + "/" + lun.day + ")" +
+  "<tr><th>해 뜸 · 남중 · 짐<td>" + HToHM(GetTime(sun[0])) + " · " + HToHM(GetTime(sun[1])) + " · " + HToHM(GetTime(sun[2])) +
+  "<tr><th>달 뜸 · 짐<td>" + HToHM(GetTime(moon[0])) + " · " + HToHM(GetTime(moon[2])) +
+  "<tr><th>지금 지방항성시<td>" + HToHMS2(GetTime(lst)) +
+  "</table><p class=moon>" + MoonPhase.svg(ph, 64) + " 달 " + Math.round(ph.fraction * 100) + "% · 월령 " + ph.age.toFixed(1) + "일</p>";
+</script>
+</body>
+</html>
