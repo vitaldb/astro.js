@@ -1667,3 +1667,94 @@ function lun2sol(ly, lm, ld, leap) {
     jd += ld;
     return { year: GetYear(jd), month: GetMonth(jd), day: GetDay(jd) };
 }
+
+// ---- 행성의 위성 (v1.2) ----
+// 목성 갈릴레이 위성 4개는 Meeus 『Astronomical Algorithms』 44장(간이 이론)으로 계산한다.
+// 나머지(화성 2, 토성 7, 천왕성 4, 트리톤)는 JPL Horizons 벡터로 맞춘 평균 원궤도(행성 중심 ICRF, km)다.
+//   궤도 반지름 a, 평균 운동 n(라디안/일), 기준 시각 위상 th0, 궤도면 법선(ICRF 단위벡터)
+//   기준 시각 2461309.5 TDB (2026-09-27). 4년 뒤까지 궤도 반지름의 8% 안쪽(타이탄 5%, 이심률 때문).
+// GetSatellites(tt, planet, ra, dec, distKm): tt 역학시 율리우스일, planet 'jupiter' 등,
+//   ra/dec 행성의 천측 적경·적위(J2000, 도), distKm 지구-행성 거리 → [{key, ra, dec}] (J2000, 도)
+var SAT_EPOCH = 2461309.5;
+var SAT_ORBITS = {
+    phobos: ["mars", 9373.9, 19.702061751102, 5.9676691640, [0.4291641, -0.4119506, 0.8038127]],
+    deimos: ["mars", 23457.6, 4.977014833642, 2.1787266143, [0.4042422, -0.4183843, 0.8133529]],
+    mimas: ["saturn", 185541.8, 6.667077277319, 2.2904787323, [0.0581940, 0.0760369, 0.9954054]],
+    enceladus: ["saturn", 238025.6, 4.585542881141, 4.6698054008, [0.0854460, 0.0730896, 0.9936583]],
+    tethys: ["saturn", 294674.5, 3.328306173517, 5.7908808027, [0.0668711, 0.0770296, 0.9947837]],
+    dione: ["saturn", 377418.5, 2.295716978209, 1.2193390862, [0.0852341, 0.0728062, 0.9936973]],
+    rhea: ["saturn", 527060.4, 1.390853561090, 3.8916988274, [0.0824815, 0.0776174, 0.9935655]],
+    titan: ["saturn", 1222253.2, 0.394048463839, 2.5104140580, [0.0880711, 0.0666723, 0.9938804]],
+    iapetus: ["saturn", 3563226.8, 0.079200626127, 3.5492663963, [0.1920938, -0.1786627, 0.9649765]],
+    ariel: ["uranus", 190930.0, 2.492950039278, 4.9183782620, [0.2116781, 0.9416054, 0.2618620]],
+    umbriel: ["uranus", 265982.4, 1.516149017676, 5.6260745449, [0.2106760, 0.9417890, 0.2620097]],
+    titania: ["uranus", 436312.0, 0.721719668623, 2.3989077505, [0.2120307, 0.9417416, 0.2610857]],
+    oberon: ["uranus", 583460.2, 0.466692112188, 1.5742045728, [0.2108650, 0.9426417, 0.2587713]],
+    triton: ["neptune", 354759.7, 1.069142907280, 4.3622580072, [-0.5276223, 0.7727650, -0.3527734]]
+};
+var SAT_JUPITER_POLE = [268.057, 64.495];   // IAU 자전축 북극 (J2000 적경, 적위)
+function _satUnit(raDeg, decDeg) {
+    var a = raDeg * D2R, d = decDeg * D2R;
+    return [Math.cos(d) * Math.cos(a), Math.cos(d) * Math.sin(a), Math.sin(d)];
+}
+function _satRaDec(v) {
+    var r = Math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+    var ra = Math.atan2(v[1], v[0]) * R2D;
+    return { ra: ra < 0 ? ra + 360 : ra, dec: Math.asin(v[2] / r) * R2D };
+}
+// 목성 갈릴레이 위성: 목성 적도 반지름 단위 X(서쪽 +), Y(목성 북쪽 +). Meeus 44장.
+function _galilean(jde) {
+    var d = jde - 2451545.0, s = function (x) { return Math.sin(x * D2R); }, c = function (x) { return Math.cos(x * D2R); };
+    var V = 172.74 + 0.00111588 * d, M = 357.529 + 0.9856003 * d;
+    var N = 20.020 + 0.0830853 * d + 0.329 * s(V), J = 66.115 + 0.9025179 * d - 0.329 * s(V);
+    var A = 1.915 * s(M) + 0.020 * s(2 * M), B = 5.555 * s(N) + 0.168 * s(2 * N);
+    var K = J + A - B;
+    var R = 1.00014 - 0.01671 * c(M) - 0.00014 * c(2 * M);
+    var r = 5.20872 - 0.25208 * c(N) - 0.00611 * c(2 * N);
+    var D = Math.sqrt(r * r + R * R - 2 * r * R * c(K));
+    var psi = Math.asin(R / D * s(K)) * R2D;
+    var t = d - D / 173;
+    var u1 = 163.8069 + 203.4058646 * t + psi - B, u2 = 358.4140 + 101.2916335 * t + psi - B;
+    var u3 = 5.7176 + 50.2345180 * t + psi - B, u4 = 224.8092 + 21.4879800 * t + psi - B;
+    var G = 331.18 + 50.310482 * t, H = 87.45 + 21.569231 * t;
+    var k1 = 0.473 * s(2 * (u1 - u2)), k2 = 1.065 * s(2 * (u2 - u3)), k3 = 0.165 * s(G), k4 = 0.843 * s(H);
+    var r1 = 5.9057 - 0.0244 * c(2 * (u1 - u2)), r2 = 9.3966 - 0.0882 * c(2 * (u2 - u3));
+    var r3 = 14.9883 - 0.0216 * c(G), r4 = 26.3627 - 0.1939 * c(H);
+    var lam = 34.35 + 0.083091 * d + 0.329 * s(V) + B;
+    var Ds = 3.12 * s(lam + 42.8);
+    var De = Ds - 2.22 * s(psi) * c(lam + 22) - 1.30 * (r - D) / D * s(lam - 100.5);
+    var u = [u1 + k1, u2 + k2, u3 + k3, u4 + k4], rr = [r1, r2, r3, r4], keys = ["io", "europa", "ganymede", "callisto"], out = [];
+    for (var i = 0; i < 4; i++) out.push({ key: keys[i], X: rr[i] * s(u[i]), Y: -rr[i] * c(u[i]) * s(De) });
+    return out;
+}
+function GetSatellites(tt, planet, ra, dec, distKm) {
+    var out = [];
+    if (planet == "jupiter") {
+        // 자전축 북극의 위치각 P(북→동)로 X(서), Y(북) 을 하늘의 동·북 방향으로 돌린다
+        var a1 = ra * D2R, d1 = dec * D2R, a0 = SAT_JUPITER_POLE[0] * D2R, d0 = SAT_JUPITER_POLE[1] * D2R;
+        var P = Math.atan2(Math.cos(d0) * Math.sin(a0 - a1), Math.sin(d0) * Math.cos(d1) - Math.cos(d0) * Math.sin(d1) * Math.cos(a0 - a1));
+        var rho = Math.asin(71492 / distKm) * R2D;   // 목성 적도 반지름의 겉보기 크기(도)
+        var g = _galilean(tt);
+        for (var i = 0; i < g.length; i++) {
+            // 서쪽(X+) 방향의 위치각은 P − 90°
+            var east = g[i].X * Math.sin(P - Math.PI / 2) + g[i].Y * Math.sin(P);
+            var north = g[i].X * Math.cos(P - Math.PI / 2) + g[i].Y * Math.cos(P);
+            out.push({ key: g[i].key, ra: ra + east * rho / Math.cos(d1), dec: dec + north * rho });
+        }
+        return out;
+    }
+    var geo = _satUnit(ra, dec);
+    var lt = distKm / 299792.458 / 86400;          // 광행시간(일): 위성도 그만큼 이른 시각의 위치
+    for (var key in SAT_ORBITS) {
+        var o = SAT_ORBITS[key];
+        if (o[0] != planet) continue;
+        var nrm = o[4], e1 = [-nrm[1], nrm[0], 0], len = Math.sqrt(e1[0] * e1[0] + e1[1] * e1[1]);
+        e1 = [e1[0] / len, e1[1] / len, 0];
+        var e2 = [nrm[1] * e1[2] - nrm[2] * e1[1], nrm[2] * e1[0] - nrm[0] * e1[2], nrm[0] * e1[1] - nrm[1] * e1[0]];
+        var th = o[3] + o[2] * (tt - lt - SAT_EPOCH), ct = Math.cos(th), st = Math.sin(th);
+        var v = [0, 1, 2].map(function (k) { return geo[k] * distKm + o[1] * (ct * e1[k] + st * e2[k]); });
+        var p = _satRaDec(v);
+        out.push({ key: key, ra: p.ra, dec: p.dec });
+    }
+    return out;
+}

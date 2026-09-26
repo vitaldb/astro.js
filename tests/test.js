@@ -23,4 +23,5 @@ function walk(a, b, path) {
 for (const k of Object.keys(golden)) walk(golden[k], got[k], k);
 console.log(fails ? `실패 ${fails}건` : "통과: 모든 값이 기준값과 같습니다");
 const lunarFails = require("./lunar_test").run();
-process.exit(fails || lunarFails ? 1 : 0);
+const satFails = require("./satellites_test").run();
+process.exit(fails || lunarFails || satFails ? 1 : 0);

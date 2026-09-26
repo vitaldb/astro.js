@@ -1,5 +1,19 @@
 # 변경 기록
 
+## 1.2.0 — 2026-09-27
+
+### 행성의 위성 (`GetSatellites`) — 새 기능
+- `GetSatellites(tt, planet, ra, dec, distKm)`: 행성의 천측 적경·적위(J2000, 도)와 지구-행성 거리(km)를 받아
+  그 시각(역학시 율리우스일) 위성들의 적경·적위(J2000, 도)를 `[{key, ra, dec}]` 로 준다.
+  `planet` 은 `'mars'`, `'jupiter'`, `'saturn'`, `'uranus'`, `'neptune'`. 기존 함수와 값은 바뀌지 않았다.
+- 목성 갈릴레이 위성(이오·유로파·가니메데·칼리스토)은 Meeus 『Astronomical Algorithms』 44장 이론.
+- 화성(포보스·데이모스), 토성(미마스·엔셀라두스·테티스·디오네·레아·타이탄·이아페투스), 천왕성(아리엘·움브리엘·티타니아·오베론),
+  해왕성(트리톤)은 JPL Horizons 벡터로 맞춘 평균 원궤도(`SAT_ORBITS`, 기준 2026-09-27 TDB, `scripts/fit_satellite_orbits.py`).
+  평균 운동은 1년 떨어진 두 시점의 위상으로 다듬었다.
+- 정확도(Horizons 대비, 2026-09 ~ 2030-09 다섯 시점, `tests/satellites_test.js`): 갈릴레이 위성 2.5″, 토성 안쪽 위성·천왕성 위성·트리톤·
+  화성 위성 1.5″ 이내, 타이탄 9.4″, 이아페투스 17″(이심률이 있어 원궤도 근사 오차, 궤도 반지름의 2~5%). `npm test` 에 포함되고
+  DE406 없이 `npm run test:satellites` 로도 돌린다.
+
 ## 1.1.0 — 2026-09-26
 
 정확도 버그 수정. 검사 방법은 README 의 "테스트" 절 참고. 수치는 서울, skyfield + JPL DE421 대비(초).

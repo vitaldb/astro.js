@@ -55,6 +55,17 @@ python server/de406_server.py lnxm3000p3000.406 --port 8000
 (= UT + `deltaT()`)로 바꿔 넘긴다. `getpos` 는 기하학적 위치를 주며, 광행시간·광행차를 넣은
 겉보기 위치는 `GetApparentEqu(tt, id)` 로 얻는다. `calsun`·`calmoon`·`calpla[]` 는 이미 그렇게 한다.
 
+### 행성의 위성 (1.2)
+
+```js
+// 행성의 천측 적경·적위(J2000, 도)와 거리(km)를 주면 위성 위치(J2000, 도)를 돌려준다. tt 는 역학시 율리우스일.
+var sats = GetSatellites(tt, "jupiter", 141.044, 15.862, 8.4e8);
+// → [{key: "io", ra: ..., dec: ...}, {key: "europa", ...}, {key: "ganymede", ...}, {key: "callisto", ...}]
+```
+
+`planet`: `mars`(포보스·데이모스), `jupiter`(갈릴레이 위성 4개, Meeus 44장), `saturn`(미마스~이아페투스 7개),
+`uranus`(아리엘·움브리엘·티타니아·오베론), `neptune`(트리톤). 목성 외는 평균 원궤도라 DE406 이 필요 없다.
+
 ## 테스트
 
 ```sh
@@ -65,6 +76,8 @@ DE406_FILE=lnxm3000p3000.406 npm test
   `tests/golden_v1.json` 은 2007~2026년 천문노트에서 쓰던 원본(압축본, v1.0)의 출력이다.
 - `tests/lunar_test.js`: `sol2lun` 을 1841~2050년 **모든 날**, `lun2sol` 을 모든 달의 첫날·끝날에 대해
   한국천문연구원(KASI) 음양력 자료(`tests/kasi_lunar.json`)와 비교한다. `npm test` 에 포함된다.
+- `tests/satellites_test.js`: `GetSatellites` 를 JPL Horizons 기준값(`tests/horizons_satellites.json`, 2026~2030년 다섯 시점)과
+  비교한다. DE406 없이 `npm run test:satellites` 로도 돌린다.
 
 ### 정확도 검사 (skyfield + JPL DE421)
 
@@ -92,11 +105,14 @@ uv run --with skyfield --with numpy python tests/skyfield_check.py --run src/ast
 - `getpos()` 는 기하학적 위치다(광행차 없음, 행성 20~35″). 겉보기 위치는 `GetApparentEqu()` 를 쓴다.
   세차·장동은 IAU 1976/1980 모형이라 J2000 에서 멀어질수록 0.1″ 수준의 차이가 생긴다.
 - 행성 계산이 레코드를 **동기** XMLHttpRequest 로 받는다. 화면이 잠깐 멈출 수 있다.
+- 목성 외 위성은 2026-09-27 기준 평균 원궤도다. 이심률이 있는 타이탄·이아페투스는 10~20″ 오차가 있고,
+  궤도면 세차를 넣지 않았으므로 기준 시각에서 수년 이상 멀어지면 `scripts/fit_satellite_orbits.py` 로 다시 맞추는 것이 좋다.
 
 ## 데이터 출처
 
 - 별 목록(`stardata`): Yale Bright Star Catalogue, 5th Revised Ed. (Hoffleit & Warren, 1991)
 - 행성·달·태양 위치: NASA JPL DE406 Long Ephemeris
+- 위성: Meeus, *Astronomical Algorithms* 2판 44장(갈릴레이 위성), NASA JPL Horizons(나머지 위성 궤도 맞춤·검사 기준값)
 - 별자리 이름(한글), 도시 목록: 천문노트
 
 ## 라이선스
