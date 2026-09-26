@@ -13,7 +13,7 @@
 
     function at(lct) {
         var ut = LCTToUT(lct, typeof dgmt === "number" ? dgmt : 9);
-        var pos = getpos(ut);                   // 지구 중심 적도 좌표 (0..10), 9 = 달, 10 = 태양
+        var pos = getpos(ut, 9);                // 지구 중심 적도 좌표: 9 = 달, 10 = 태양 (필요한 천체만 계산)
         var moon = pos[9], sun = pos[10];
         var toSun = Sub(sun, moon), toEarth = Sub(new Vector(0, 0, 0), moon);
         var phaseAngle = Ang(toSun, toEarth);   // 달에서 본 해와 지구 사이 각

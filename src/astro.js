@@ -913,7 +913,11 @@ function nutlo(jd) {
     nutl = 0.0001 * C * S2R;
     nuto = 0.0001 * D * S2R;
 }
+var nutmat_jd = null;
+var nutmat = null;
 function nutate(vec, jd) {
+    // 같은 jd 로 여러 천체를 부르므로 장동 행렬을 jd 별로 한 번만 만든다(결과는 같다)
+    if (nutmat_jd === jd) return nutmat.Mul(vec);
     nutlo(jd);
     var eps = epsiln(jd);
     var f = eps + nuto;
@@ -933,6 +937,8 @@ function nutate(vec, jd) {
         so + (cl - 1.0) * se * Math.cos(eps),
         cl * Math.sin(eps) * se + Math.cos(eps) * ce,
     );
+    nutmat = mat;
+    nutmat_jd = jd;
     return mat.Mul(vec);
 }
 var pAcof = [
@@ -946,52 +952,72 @@ var inclcof = [
     1.2147e-16, 7.3759e-17, -8.26287e-14, 2.50341e-13, 2.4650839e-11, -5.4000441e-11, 1.32115526e-9,
     -5.998737027e-7, -1.6242797091e-5, 0.002278495537, 0,
 ];
-function precess(vec, jd, direction) {
-    if (jd == J2000) return vec;
+// 세차 회전에 쓰는 각의 sin/cos 을 (jd, 방향) 별로 한 번만 계산해 둔다.
+// 회전 순서와 연산은 원래 코드와 같으므로 결과가 비트 단위로 같다.
+var precess_cache = {};
+function precess_coef(jd, direction) {
+    var key = direction == 1 ? 1 : -1;
+    var c = precess_cache[key];
+    if (c && c.jd === jd) return c;
     var eps = epsiln(J2000);
     if (direction == 1) eps = epsiln(jd);
     var t = (jd - J2000) / 365250.0;
     var p = 0;
-    pA = pAcof[p++];
-    for (var i = 0; i < 9; i++) pA = pA * t + pAcof[p++];
-    pA *= S2R * t;
-    var p = 0;
+    var pa = pAcof[p++];
+    for (var i = 0; i < 9; i++) pa = pa * t + pAcof[p++];
+    pa *= S2R * t;
+    p = 0;
     var w = nodecof[p++];
     for (var i = 0; i < 10; i++) w = w * t + nodecof[p++];
-    var x = [
-        vec.x,
-        Math.cos(eps) * vec.y + Math.sin(eps) * vec.z,
-        -Math.sin(eps) * vec.y + Math.cos(eps) * vec.z,
-    ];
-    var z = w;
-    if (direction == 1) z = w + pA;
-    var B = Math.cos(z);
-    var A = Math.sin(z);
-    var z = B * x[0] + A * x[1];
-    x[1] = -A * x[0] + B * x[1];
-    x[0] = z;
+    var z1 = w;
+    if (direction == 1) z1 = w + pa;
     p = 0;
-    z = inclcof[p++];
-    for (var i = 0; i < 10; i++) z = z * t + inclcof[p++];
-    if (direction == 1) z = -z;
-    B = Math.cos(z);
-    A = Math.sin(z);
-    z = B * x[1] + A * x[2];
-    x[2] = -A * x[1] + B * x[2];
-    x[1] = z;
-    if (direction == 1) z = -w;
-    else z = -w - pA;
-    B = Math.cos(z);
-    A = Math.sin(z);
-    z = B * x[0] + A * x[1];
-    x[1] = -A * x[0] + B * x[1];
-    x[0] = z;
-    if (direction == 1) eps = epsiln(J2000);
-    else eps = epsiln(jd);
-    z = Math.cos(eps) * x[1] - Math.sin(eps) * x[2];
-    x[2] = Math.sin(eps) * x[1] + Math.cos(eps) * x[2];
-    x[1] = z;
-    return new Vector(x[0], x[1], x[2]);
+    var z2 = inclcof[p++];
+    for (var i = 0; i < 10; i++) z2 = z2 * t + inclcof[p++];
+    if (direction == 1) z2 = -z2;
+    var z3;
+    if (direction == 1) z3 = -w;
+    else z3 = -w - pa;
+    var eps2;
+    if (direction == 1) eps2 = epsiln(J2000);
+    else eps2 = epsiln(jd);
+    c = {
+        jd: jd,
+        pA: pa,
+        ce1: Math.cos(eps),
+        se1: Math.sin(eps),
+        B1: Math.cos(z1),
+        A1: Math.sin(z1),
+        B2: Math.cos(z2),
+        A2: Math.sin(z2),
+        B3: Math.cos(z3),
+        A3: Math.sin(z3),
+        ce2: Math.cos(eps2),
+        se2: Math.sin(eps2),
+    };
+    precess_cache[key] = c;
+    return c;
+}
+function precess(vec, jd, direction) {
+    if (jd == J2000) return vec;
+    var c = precess_coef(jd, direction);
+    pA = c.pA; // 원래 코드가 전역 변수 pA 를 남겼으므로 유지한다
+    var x0 = vec.x;
+    var x1 = c.ce1 * vec.y + c.se1 * vec.z;
+    var x2 = -c.se1 * vec.y + c.ce1 * vec.z;
+    var z = c.B1 * x0 + c.A1 * x1;
+    x1 = -c.A1 * x0 + c.B1 * x1;
+    x0 = z;
+    z = c.B2 * x1 + c.A2 * x2;
+    x2 = -c.A2 * x1 + c.B2 * x2;
+    x1 = z;
+    z = c.B3 * x0 + c.A3 * x1;
+    x1 = -c.A3 * x0 + c.B3 * x1;
+    x0 = z;
+    z = c.ce2 * x1 - c.se2 * x2;
+    x2 = c.se2 * x1 + c.ce2 * x2;
+    x1 = z;
+    return new Vector(x0, x1, x2);
 }
 function sidrlt(jd) {
     var secs = GetTime(jd) * 3600.0;
@@ -1223,7 +1249,11 @@ function getrecord(idx) {
         req.open("GET", "/de406.php?idx=" + idx, false);
         req.send();
         if (req.status == 200) {
-            var record = req.responseText.split(",");
+            // 쉼표로 이은 계수 728개를 한 번만 숫자로 바꿔 둔다(계산할 때마다 문자열을 숫자로 바꾸지 않도록).
+            // Number(문자열) 은 곱셈 때의 암묵 변환과 같은 값이므로 결과는 그대로다.
+            var text = req.responseText.split(",");
+            var record = typeof Float64Array != "undefined" ? new Float64Array(text.length) : [];
+            for (var i = 0; i < text.length; i++) record[i] = +text[i];
             de406[idx] = record;
         }
     }
