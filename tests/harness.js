@@ -40,10 +40,22 @@ function compute(A) {
         out.deltaT = out.jd.map(deltaT);
         out.gst = out.jd.map(function (jd) { return UTToGST(LCTToUT(jd, 9)); });
         out.sun = out.jd.map(function (jd) { var r = GetRiseSetTime2(jd, calsun, D2R * -0.83); return [r[0], r[1], r[2]]; });
-        out.moon = out.jd.map(function (jd) { var r = GetRiseSetTime2(jd, calmoon, D2R * -0.13); return [r[0], r[1], r[2]]; });
+        // 달의 h0 는 +0.13° (v1 골든은 사이트의 잘못된 값 −0.13° 로 만들었다)
+        out.moon = out.jd.map(function (jd) { var r = GetRiseSetTime2(jd, calmoon, D2R * 0.13); return [r[0], r[1], r[2]]; });
         out.pos = out.jd.map(function (jd) { var p = getpos(LCTToUT(jd, 9));
             return p.filter(Boolean).map(function (v) { return [v.GetLon(), v.GetLat(), v.GetLength()]; }); });
         out.lunar = dates.map(function (d) { var l = sol2lun(d[0], d[1], d[2]); return [l.year, l.month, l.day, l.leap]; });
+        if (typeof GetMoonPhaseTime == "function") { // v1.1 부터
+            out.deltaT_years = [1900, 1950, 1980, 2000, 2016, 2026, 2030, 2050, 2100, 2500].map(function (y) { return deltaT(GetJD(y, 7, 1, 0, 0, 0)); });
+            out.moonphase2026 = [0, 90, 180, 270].map(function (a) { var r = [], t = GetJD(2026, 1, 1, 0, 0, 0);
+                for (var i = 0; i < 13; i++) { r.push(GetMoonPhaseTime(t + i * 29.530589, a)); } return r; });
+            out.solarterm2026 = [285, 300, 315, 330, 345, 0, 15, 30, 45, 60, 75, 90, 105, 120, 135, 150, 165, 180, 195, 210, 225, 240, 255, 270]
+                .map(function (a) { return GetSolarTermTime(2026, a); });
+            out.lun2sol = [[2016, 1, 1, 0], [2017, 2, 1, 0], [2004, 10, 1, 0], [2033, 8, 15, 0], [2033, 11, 1, 1], [2050, 12, 29, 0], [2051, 1, 1, 0]]
+                .map(function (a) { var r = lun2sol(a[0], a[1], a[2], a[3]); return [r.year, r.month, r.day]; });
+            out.sol2lun_out = [[1841, 1, 22], [2042, 1, 1], [2051, 2, 11], [2100, 1, 1]]
+                .map(function (d) { var l = sol2lun(d[0], d[1], d[2]); return [l.year, l.month, l.day, l.leap]; });
+        }
         return JSON.stringify(out);
     })()`);
 }

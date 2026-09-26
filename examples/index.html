@@ -23,7 +23,7 @@ var now = new Date();
 var lct = GetJD(now.getFullYear(), now.getMonth() + 1, now.getDate(), 12, 0, 0);
 
 var sun = GetRiseSetTime2(lct, calsun, D2R * -0.83);   // 대기 굴절·해의 크기 보정
-var moon = GetRiseSetTime2(lct, calmoon, D2R * -0.13);
+var moon = GetRiseSetTime2(lct, calmoon, D2R * 0.13);   // 달은 +0.13°
 var lun = sol2lun(now.getFullYear(), now.getMonth() + 1, now.getDate());
 var lst = GSTToLST(UTToGST(LCTToUT(GetJD(now.getFullYear(), now.getMonth() + 1, now.getDate(),
                                          now.getHours(), now.getMinutes(), now.getSeconds()), dgmt)), glon);

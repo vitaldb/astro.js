@@ -1,9 +1,9 @@
 {
   "name": "astro.js",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "브라우저용 천문 계산 라이브러리 (JPL DE406, 한국 음력) — 천문노트(astronote.org) 천문 프로그램의 엔진",
   "license": "MIT",
   "author": "Hyung-Chul Lee (이형철)",
   "repository": { "type": "git", "url": "https://github.com/vitaldb/astro.js" },
-  "scripts": { "test": "node tests/test.js" }
+  "scripts": { "test": "node tests/test.js", "test:lunar": "node tests/lunar_test.js" }
 }
