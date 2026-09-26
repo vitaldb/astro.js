@@ -58,7 +58,12 @@ DE406_FILE=lnxm3000p3000.406 npm test
 
 - 음력 표는 2041년까지다.
 - 행성 계산이 레코드를 **동기** XMLHttpRequest 로 받는다. 화면이 잠깐 멈출 수 있다.
-- `astrodata.js` 의 별 목록 등은 원본 파일에 출처 기록이 남아 있지 않다. 밝은 별 목록은 공개 목록(Yale Bright Star Catalogue 등)에서 만든 것으로 보이나 확인되지 않았다.
+
+## 데이터 출처
+
+- 별 목록(`stardata`): Yale Bright Star Catalogue, 5th Revised Ed. (Hoffleit & Warren, 1991)
+- 행성·달·태양 위치: NASA JPL DE406 Long Ephemeris
+- 별자리 이름(한글), 도시 목록: 천문노트
 
 ## 라이선스
 
@@ -73,6 +78,6 @@ An astronomy library for the browser, used since 2007 by the Korean amateur astr
 Planetary positions come from NASA JPL's DE406 ephemeris (3000 BC – AD 3000), served in 64-day
 Chebyshev records by a tiny endpoint (`server/de406_server.py`). Also includes precession/nutation,
 coordinate transforms, sidereal time, ΔT, rise/transit/set solving, the Korean lunisolar calendar
-(1841–2041), a bright-star catalog with Korean constellation names, and an SVG moon-phase renderer.
+(1841–2041), the Yale Bright Star Catalogue (5th ed.) with Korean constellation names, and an SVG moon-phase renderer.
 Run `scripts/get-de406.sh`, then `python server/de406_server.py lnxm3000p3000.406` and open
 `http://localhost:8000/examples/`. MIT licensed.
